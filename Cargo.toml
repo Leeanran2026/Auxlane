@@ -1,0 +1,26 @@
+[package]
+name = "auxlane"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+description = "A Material 3 Bluetooth audio receiver for Windows"
+authors = ["Auxlane contributors"]
+license = "GPL-3.0-only"
+publish = false
+
+[dependencies]
+dirs = "7"
+log = "0.4"
+raw-window-handle = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+simplelog = "0.12"
+slint = { version = "1.18", default-features = false, features = ["std", "backend-winit", "renderer-software", "accessibility", "compat-1-2", "system-tray", "unstable-winit-030"] }
+sys-locale = "0.3"
+windows = { version = "0.62.2", features = ["Media_Audio", "Devices_Enumeration", "Foundation", "Foundation_Collections", "Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_Security", "Win32_System_Com", "Win32_System_Threading", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows-future = "0.3"
+winreg = "0.56"
+
+[build-dependencies]
+slint-build = "1.18"
+winresource = "0.1"

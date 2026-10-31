@@ -1,0 +1,8 @@
+/target
+*.log
+
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.swp

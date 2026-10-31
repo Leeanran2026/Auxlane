@@ -1,0 +1,1338 @@
+import { Button, ScrollView } from "std-widgets.slint";
+
+export global Theme {
+    in-out property <bool> dark: true;
+    in-out property <color> background: #191e24;
+    in-out property <color> surface: #222830;
+    in-out property <color> surface-container: #191e24;
+    in-out property <color> surface-variant: #3f4650;
+    in-out property <color> on-surface: #e7eaef;
+    in-out property <color> on-surface-variant: #a9b1bc;
+    in-out property <color> outline: #818a98;
+    in-out property <color> border: #38414c;
+    in-out property <color> primary: #a7c6fb;
+    in-out property <color> on-primary: #082049;
+    in-out property <color> primary-container: #2d4876;
+    in-out property <color> on-primary-container: #cfdffc;
+    in-out property <color> secondary-container: #3f4650;
+    in-out property <color> on-secondary-container: #e7eaef;
+    in-out property <color> tertiary: #7cded5;
+    in-out property <color> on-tertiary: #052e2a;
+    in-out property <color> tertiary-container: #124944;
+    in-out property <color> on-tertiary-container: #bef4ee;
+    in-out property <color> error: #ffb6ad;
+    in-out property <color> on-error: #5c0900;
+    in-out property <color> error-container: #72251d;
+    in-out property <color> on-error-container: #ffd1cc;
+    in-out property <color> hairline: #38414c;
+    in-out property <color> panel-border: #3f4650;
+    in-out property <color> shadow: #000000;
+}
+
+export struct Texts {
+    subtitle: string,
+    devices: string,
+    add: string,
+    scanning: string,
+    empty: string,
+    empty-hint: string,
+    device-selected: string,
+    device-ready: string,
+    device-unavailable: string,
+    device-streaming: string,
+    settings-title: string,
+    settings-general: string,
+    settings-appearance: string,
+    settings-about: string,
+    settings-theme: string,
+    settings-theme-desc: string,
+    theme-system: string,
+    theme-light: string,
+    theme-dark: string,
+    settings-refresh: string,
+    settings-refresh-desc: string,
+    seconds-2: string,
+    seconds-3: string,
+    seconds-5: string,
+    seconds-10: string,
+    settings-language: string,
+    settings-language-desc: string,
+    language-system: string,
+    settings-accent: string,
+    settings-accent-desc: string,
+    accent-blue: string,
+    accent-teal: string,
+    accent-purple: string,
+    accent-amber: string,
+    version-label: string,
+    design: string,
+    design-desc: string,
+    built-with: string,
+    built-with-desc: string,
+    aria-minimize: string,
+    aria-close: string,
+    aria-theme-dark: string,
+    aria-theme-light: string,
+    aria-refresh: string,
+    aria-settings: string,
+    aria-close-settings: string,
+    aria-add-device: string,
+    aria-paired-devices: string,
+    snackbar-dismiss: string,
+    stage-idle: string,
+    stage-connected: string,
+    more-title: string,
+    aria-more: string,
+    aria-close-more: string,
+}
+
+export struct Device {
+    id: string,
+    name: string,
+    meta: string,
+    enabled: bool,
+    active: bool,
+    selected: bool,
+    favorite: bool,
+    connect-label: string,
+    disconnect-label: string,
+    favorite-label: string,
+}
+
+export component AppTray inherits SystemTrayIcon {
+    icon: @image-url("icons/app-icon.png");
+    title: "Auxlane";
+
+    in property <string> tray-tooltip: "Auxlane";
+    tooltip: root.tray-tooltip;
+
+    in property <string> show-label: "Show Auxlane";
+    in property <string> disconnect-label: "Disconnect";
+    in property <string> quit-label: "Quit";
+    in property <bool> can-disconnect: false;
+
+    callback show-window();
+    callback disconnect();
+    callback quit();
+
+    clicked => { root.show-window(); }
+
+    Menu {
+        MenuItem {
+            title: root.show-label;
+            activated => { root.show-window(); }
+        }
+        MenuItem {
+            title: root.disconnect-label;
+            enabled: root.can-disconnect;
+            activated => { root.disconnect(); }
+        }
+        MenuSeparator { }
+        MenuItem {
+            title: root.quit-label;
+            activated => { root.quit(); }
+        }
+    }
+}
+
+component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <color> icon-color: Theme.on-surface-variant;
+    in property <color> button-background: #00000000;
+    in property <length> button-size: 32px;
+    in property <length> icon-size: 16px;
+    in property <string> label;
+    in property <bool> is-enabled: true;
+    callback clicked;
+
+    width: button-size;
+    height: button-size;
+    border-radius: 9px;
+    background: touch.has-hover && is-enabled ? Theme.surface-variant.transparentize(0.55) : button-background;
+    opacity: is-enabled ? 1 : 0.35;
+
+    Image {
+        source: root.icon;
+        x: (parent.width - icon-size) / 2;
+        y: (parent.height - icon-size) / 2;
+        width: icon-size;
+        height: icon-size;
+        colorize: root.icon-color;
+    }
+    touch := TouchArea {
+        width: 100%;
+        height: 100%;
+        enabled: root.is-enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}
+
+component DeviceRow inherits Rectangle {
+    in property <Device> device;
+    in property <bool> busy: false;
+    callback select(string);
+    callback connect(string);
+    callback disconnect();
+    callback toggle-favorite(string);
+
+    height: 54px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: device.active ? Theme.tertiary.transparentize(0.5) : (device.selected ? Theme.primary.transparentize(0.45) : Theme.hairline);
+    background: device.active ? Theme.tertiary.transparentize(0.92) : (device.selected ? Theme.primary.transparentize(0.9) : Theme.surface-variant.transparentize(0.75));
+
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        clicked => { root.select(device.id); }
+    }
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 4px;
+        spacing: 8px;
+        cross-axis-alignment: center;
+
+        Rectangle {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: device.active ? Theme.tertiary.transparentize(0.85) : Theme.primary.transparentize(0.87);
+            border-width: 1px;
+            border-color: device.active ? Theme.tertiary.transparentize(0.76) : Theme.primary.transparentize(0.82);
+            Image {
+                source: @image-url("icons/audio.svg");
+                x: 8px;
+                y: 8px;
+                width: 18px;
+                height: 18px;
+                colorize: device.active ? Theme.tertiary : Theme.primary;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: device.name;
+                color: Theme.on-surface;
+                font-size: 13px;
+                font-weight: 600;
+                overflow: elide;
+            }
+            Text {
+                text: device.meta;
+                color: device.active ? Theme.tertiary : Theme.on-surface-variant;
+                font-size: 11px;
+                overflow: elide;
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; background: #00000000; }
+
+        if device.active || device.selected: Image {
+            source: @image-url("icons/check-circle.svg");
+            width: 16px;
+            height: 16px;
+            colorize: device.active ? Theme.tertiary : Theme.primary;
+        }
+
+        IconButton {
+            icon: device.favorite ? @image-url("icons/star-filled.svg") : @image-url("icons/star.svg");
+            icon-color: device.favorite ? Theme.primary : Theme.on-surface-variant;
+            button-size: 28px;
+            icon-size: 15px;
+            label: device.favorite-label;
+            clicked => { root.toggle-favorite(device.id); }
+        }
+
+        IconButton {
+            icon: device.active ? @image-url("icons/unlink.svg") : @image-url("icons/link.svg");
+            icon-color: device.active ? Theme.error : Theme.primary;
+            button-size: 32px;
+            icon-size: 16px;
+            label: device.active ? device.disconnect-label : device.connect-label;
+            is-enabled: device.enabled && !root.busy;
+            clicked => {
+                if (device.active) {
+                    root.disconnect();
+                } else {
+                    root.connect(device.id);
+                }
+            }
+        }
+    }
+}
+
+component ChoiceChip inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected;
+    callback clicked;
+
+    height: 32px;
+    width: label_text.width + 20px;
+    border-radius: 9px;
+    background: selected ? Theme.primary : Theme.surface-variant.transparentize(0.6);
+
+    label_text := Text {
+        text: root.label;
+        color: selected ? Theme.on-primary : Theme.on-surface-variant;
+        font-size: 11px;
+        font-weight: 600;
+        x: 10px;
+        y: (parent.height - self.height) / 2;
+    }
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}
+
+component Swatch inherits Rectangle {
+    in property <color> swatch-color;
+    in property <bool> selected;
+    in property <string> label;
+    callback clicked;
+
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    background: root.swatch-color;
+    border-width: 2px;
+    border-color: selected ? Theme.primary : #00000000;
+
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}
+
+component NavItem inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <bool> selected;
+    callback clicked;
+
+    height: 46px;
+    border-radius: 14px;
+    background: selected ? Theme.secondary-container : (touch.has-hover ? Theme.surface-variant.transparentize(0.65) : #00000000);
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+        cross-axis-alignment: center;
+        Image {
+            source: root.icon;
+            width: 20px;
+            height: 20px;
+            colorize: selected ? Theme.primary : Theme.on-surface-variant;
+        }
+        Text {
+            text: root.label;
+            color: selected ? Theme.on-secondary-container : Theme.on-surface-variant;
+            font-size: 14px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+    touch := TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}
+
+export component AppWindow inherits Window {
+    title: "Auxlane";
+    no-frame: true;
+    resize-border-width: 6px;
+    preferred-width: 1000px;
+    preferred-height: 640px;
+    min-width: 960px;
+    min-height: 560px;
+    background: Theme.background;
+    default-font-family: "Microsoft YaHei";
+    icon: @image-url("icons/app-icon.png");
+
+    in property <Texts> texts;
+    in property <[Device]> devices;
+    in property <[Device]> more-devices;
+    in property <string> device-count-text: "0";
+    in property <bool> loading: false;
+    in property <bool> connecting: false;
+    in property <bool> connected: false;
+    in property <bool> status-error: false;
+    in property <string> status-title;
+    in property <string> status-desc;
+    in property <string> bottom-state;
+    in property <string> center-aria;
+    in property <string> app-version: "0.1.0";
+    in property <bool> snackbar-visible: false;
+    in property <string> snackbar-text;
+    in-out property <angle> ring-phase: 0deg;
+
+    in-out property <bool> more-open: false;
+    in-out property <bool> settings-open: false;
+    in-out property <int> settings-section: 0;
+    in-out property <int> theme-preference: 0;
+    in-out property <int> language-preference: 0;
+    in-out property <int> refresh-index: 1;
+    in-out property <int> accent-index: 0;
+
+    out property <color> status-color: status-error ? Theme.error : (connecting ? Theme.tertiary : (connected ? Theme.primary : Theme.on-surface-variant));
+
+    callback refresh();
+    callback add-device();
+    callback select(string);
+    callback connect(string);
+    callback disconnect();
+    callback toggle-favorite(string);
+    callback primary-action();
+    callback theme-toggle();
+    callback open-settings();
+    callback close-settings();
+    callback set-settings-section(int);
+    callback set-theme(int);
+    callback set-language(int);
+    callback set-refresh(int);
+    callback set-accent(int);
+    callback dismiss-snackbar();
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        clip: true;
+        background: Theme.background;
+
+        VerticalLayout {
+            width: 100%;
+            height: 100%;
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            spacing: 12px;
+
+            // ----------------------------------------------------------
+            // Title bar
+            // ----------------------------------------------------------
+            Rectangle {
+                width: 100%;
+                height: 52px;
+                border-radius: 16px;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.hairline;
+
+                WindowMoveArea { }
+
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 10px;
+                    spacing: 10px;
+                    cross-axis-alignment: center;
+
+                    Image {
+                        source: @image-url("icons/audio.svg");
+                        width: 28px;
+                        height: 28px;
+                        colorize: Theme.primary;
+                    }
+                    VerticalLayout {
+                        spacing: 0px;
+                        Text {
+                            text: "Auxlane";
+                            color: Theme.primary;
+                            font-size: 14px;
+                            font-weight: 800;
+                        }
+                        Text {
+                            text: root.texts.subtitle;
+                            color: Theme.on-surface-variant;
+                            font-size: 11px;
+                        }
+                    }
+                    Rectangle { horizontal-stretch: 1; background: #00000000; }
+                    IconButton {
+                        icon: @image-url("icons/minus.svg");
+                        icon-color: Theme.on-surface;
+                        button-size: 28px;
+                        icon-size: 15px;
+                        label: root.texts.aria-minimize;
+                        clicked => { root.minimized = true; }
+                    }
+                    IconButton {
+                        icon: @image-url("icons/x.svg");
+                        icon-color: Theme.on-surface;
+                        button-size: 28px;
+                        icon-size: 15px;
+                        label: root.texts.aria-close;
+                        clicked => { root.close(); }
+                    }
+                }
+            }
+
+            // ----------------------------------------------------------
+            // Workspace
+            // ----------------------------------------------------------
+            HorizontalLayout {
+                width: 100%;
+                vertical-stretch: 1;
+                spacing: 12px;
+
+                VerticalLayout {
+                    width: 38%;
+                    height: 100%;
+                    spacing: 12px;
+
+                    // Devices card
+                    Rectangle {
+                        vertical-stretch: 115;
+                        border-radius: 16px;
+                        background: Theme.surface;
+                        border-width: 1px;
+                        border-color: Theme.hairline;
+
+                        VerticalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            padding-top: 14px;
+                            padding-bottom: 14px;
+                            spacing: 10px;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                cross-axis-alignment: center;
+                                Text {
+                                    text: root.texts.devices;
+                                    color: Theme.on-surface-variant;
+                                    font-size: 12px;
+                                    vertical-alignment: center;
+                                }
+                                Rectangle {
+                                    min-width: 22px;
+                                    height: 20px;
+                                    border-radius: 10px;
+                                    background: Theme.surface-variant.transparentize(0.5);
+                                    Text {
+                                        text: root.device-count-text;
+                                        color: Theme.on-surface;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                Rectangle { horizontal-stretch: 1; background: #00000000; }
+                                IconButton {
+                                    icon: @image-url("icons/plus.svg");
+                                    button-size: 28px;
+                                    icon-size: 14px;
+                                    label: root.texts.aria-add-device;
+                                    clicked => { root.add-device(); }
+                                }
+                                IconButton {
+                                    icon: @image-url("icons/refresh-cw.svg");
+                                    button-size: 28px;
+                                    icon-size: 14px;
+                                    label: root.texts.aria-refresh;
+                                    clicked => { root.refresh(); }
+                                }
+                                IconButton {
+                                    icon: @image-url("icons/more-horizontal.svg");
+                                    icon-color: Theme.on-surface-variant;
+                                    button-size: 28px;
+                                    icon-size: 16px;
+                                    label: root.texts.aria-more;
+                                    clicked => { root.more-open = true; }
+                                }
+                            }
+
+                            if root.loading: HorizontalLayout {
+                                vertical-stretch: 1;
+                                alignment: center;
+                                cross-axis-alignment: center;
+                                spacing: 10px;
+                                Image {
+                                    source: @image-url("icons/loader.svg");
+                                    width: 16px;
+                                    height: 16px;
+                                    colorize: Theme.primary;
+                                    transform-rotation: animation-tick() / 900ms * 360deg;
+                                }
+                                Text {
+                                    text: root.texts.scanning;
+                                    color: Theme.on-surface-variant;
+                                    font-size: 12px;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            if !root.loading && root.devices.length == 0: VerticalLayout {
+                                vertical-stretch: 1;
+                                alignment: center;
+                                cross-axis-alignment: center;
+                                spacing: 6px;
+                                Rectangle {
+                                    width: 52px;
+                                    height: 52px;
+                                    border-radius: 26px;
+                                    background: Theme.primary.transparentize(0.88);
+                                    border-width: 1px;
+                                    border-color: Theme.primary.transparentize(0.82);
+                                    Image {
+                                        source: @image-url("icons/audio.svg");
+                                        x: 13px;
+                                        y: 13px;
+                                        width: 26px;
+                                        height: 26px;
+                                        colorize: Theme.primary;
+                                    }
+                                }
+                                Text {
+                                    text: root.texts.empty;
+                                    color: Theme.on-surface;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: root.texts.empty-hint;
+                                    color: Theme.on-surface-variant;
+                                    font-size: 12px;
+                                    horizontal-alignment: center;
+                                    wrap: word-wrap;
+                                    width: 220px;
+                                }
+                                Rectangle { height: 4px; background: #00000000; }
+                                Button {
+                                    text: root.texts.add;
+                                    clicked => { root.add-device(); }
+                                }
+                            }
+
+                            if !root.loading && root.devices.length > 0: ScrollView {
+                                vertical-stretch: 1;
+                                accessible-role: list;
+                                accessible-label: root.texts.aria-paired-devices;
+
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    for device in root.devices: DeviceRow {
+                                        device: device;
+                                        busy: root.connecting;
+                                        select(id) => { root.select(id); }
+                                        connect(id) => { root.connect(id); }
+                                        disconnect() => { root.disconnect(); }
+                                        toggle-favorite(id) => { root.toggle-favorite(id); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Status card
+                    Rectangle {
+                        vertical-stretch: 85;
+                        border-radius: 16px;
+                        background: Theme.surface;
+                        border-width: 1px;
+                        border-color: root.status-error ? Theme.error.transparentize(0.55) : Theme.hairline;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            cross-axis-alignment: center;
+
+                            VerticalLayout {
+                                alignment: center;
+                                cross-axis-alignment: center;
+                                spacing: 10px;
+
+                                Rectangle {
+                                    width: 48px;
+                                    height: 48px;
+                                    border-radius: 24px;
+                                    background: root.status-color.transparentize(0.8);
+
+                                    if root.connected: Image {
+                                        source: @image-url("icons/check-circle.svg");
+                                        x: 12px;
+                                        y: 12px;
+                                        width: 24px;
+                                        height: 24px;
+                                        colorize: Theme.primary;
+                                    }
+                                    if root.connecting: Image {
+                                        source: @image-url("icons/loader.svg");
+                                        x: 12px;
+                                        y: 12px;
+                                        width: 24px;
+                                        height: 24px;
+                                        colorize: Theme.tertiary;
+                                        transform-rotation: animation-tick() / 1s * 360deg;
+                                    }
+                                    if root.status-error: Image {
+                                        source: @image-url("icons/circle-alert.svg");
+                                        x: 12px;
+                                        y: 12px;
+                                        width: 24px;
+                                        height: 24px;
+                                        colorize: Theme.error;
+                                    }
+                                    if !root.connected && !root.connecting && !root.status-error: Image {
+                                        source: @image-url("icons/radio-tower.svg");
+                                        x: 12px;
+                                        y: 12px;
+                                        width: 24px;
+                                        height: 24px;
+                                        colorize: Theme.on-surface-variant;
+                                    }
+                                }
+
+                                Text {
+                                    text: root.status-title;
+                                    color: root.status-error ? Theme.error : Theme.on-surface;
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: root.status-desc;
+                                    color: Theme.on-surface-variant;
+                                    font-size: 12px;
+                                    horizontal-alignment: center;
+                                    wrap: word-wrap;
+                                    width: 230px;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Stage card
+                Rectangle {
+                    width: 62%;
+                    border-radius: 16px;
+                    background: Theme.surface;
+                    border-width: 1px;
+                    border-color: Theme.hairline;
+
+                    Rectangle {
+                        width: 100%;
+                        height: 100%;
+                        border-radius: 16px;
+                        background: @radial-gradient(circle, Theme.primary.transparentize(root.connected ? 0.88 : 0.93), #00000000);
+                    }
+
+                    VerticalLayout {
+                        width: 100%;
+                        height: 100%;
+                        alignment: center;
+                        cross-axis-alignment: center;
+
+                        Rectangle {
+                            width: 256px;
+                            height: 256px;
+
+                            for i in 24: Path {
+                                width: 100%;
+                                height: 100%;
+                                viewbox-width: 256;
+                                viewbox-height: 256;
+                                stroke: Theme.primary;
+                                stroke-width: 3px;
+                                opacity: root.connected ? 0.78 : 0;
+                                property <float> inner-radius: (112px + 8px * abs(sin(root.ring-phase + i * 15deg))) / 1px;
+                                MoveTo {
+                                    x: 128 + inner-radius * sin(i * 15deg);
+                                    y: 128 - inner-radius * cos(i * 15deg);
+                                }
+                                LineTo {
+                                    x: 128 + 128 * sin(i * 15deg);
+                                    y: 128 - 128 * cos(i * 15deg);
+                                }
+                            }
+
+                            Rectangle {
+                                property <length> button-size: root.connected ? 72px : 64px;
+                                width: button-size;
+                                height: button-size;
+                                x: (parent.width - button-size) / 2;
+                                y: (parent.height - button-size) / 2;
+                                border-radius: 999px;
+                                border-width: 1px;
+                                border-color: Theme.hairline;
+                                background: root.connected ? Theme.error : (root.connecting ? Theme.tertiary : Theme.primary);
+                                drop-shadow-color: Theme.primary.transparentize(0.7);
+                                drop-shadow-blur: 24px;
+                                drop-shadow-offset-y: 0px;
+
+                                HorizontalLayout {
+                                    alignment: center;
+                                    cross-axis-alignment: center;
+
+                                    if root.connected: Image {
+                                        source: @image-url("icons/unlink.svg");
+                                        width: 28px;
+                                        height: 28px;
+                                        colorize: Theme.on-error;
+                                    }
+                                    if root.connecting: Image {
+                                        source: @image-url("icons/refresh-cw.svg");
+                                        width: 28px;
+                                        height: 28px;
+                                        colorize: Theme.on-tertiary;
+                                        transform-rotation: animation-tick() / 2.4s * 360deg;
+                                    }
+                                    if !root.connected && !root.connecting: Image {
+                                        source: @image-url("icons/link.svg");
+                                        width: 28px;
+                                        height: 28px;
+                                        colorize: Theme.on-primary;
+                                    }
+                                }
+
+                                TouchArea {
+                                    width: 100%;
+                                    height: 100%;
+                                    enabled: !root.connecting;
+                                    mouse-cursor: pointer;
+                                    clicked => { root.primary-action(); }
+                                }
+                                accessible-role: button;
+                                accessible-label: root.center-aria;
+                            }
+                        }
+
+                        Text {
+                            text: root.connected ? root.texts.stage-connected : root.texts.stage-idle;
+                            color: Theme.on-surface-variant;
+                            font-size: 12px;
+                        }
+                    }
+                }
+            }
+
+            // ----------------------------------------------------------
+            // Bottom bar
+            // ----------------------------------------------------------
+            Rectangle {
+                width: 100%;
+                height: 56px;
+                border-radius: 16px;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.hairline;
+
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 8px;
+                    cross-axis-alignment: center;
+                    spacing: 8px;
+
+                    Rectangle {
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 4px;
+                        background: root.status-color;
+                    }
+                    Text {
+                        text: root.bottom-state;
+                        color: Theme.on-surface-variant;
+                        font-size: 12px;
+                        font-weight: 700;
+                        letter-spacing: 0.6px;
+                        vertical-alignment: center;
+                    }
+                    Rectangle { horizontal-stretch: 1; background: #00000000; }
+                    IconButton {
+                        icon: Theme.dark ? @image-url("icons/sun.svg") : @image-url("icons/moon.svg");
+                        icon-color: Theme.on-surface-variant;
+                        button-background: Theme.surface-variant.transparentize(0.6);
+                        button-size: 38px;
+                        icon-size: 17px;
+                        label: Theme.dark ? root.texts.aria-theme-light : root.texts.aria-theme-dark;
+                        clicked => { root.theme-toggle(); }
+                    }
+                    IconButton {
+                        icon: @image-url("icons/refresh-cw.svg");
+                        icon-color: Theme.on-surface-variant;
+                        button-background: Theme.surface-variant.transparentize(0.6);
+                        button-size: 38px;
+                        icon-size: 17px;
+                        label: root.texts.aria-refresh;
+                        clicked => { root.refresh(); }
+                    }
+                    IconButton {
+                        icon: @image-url("icons/settings.svg");
+                        icon-color: Theme.on-surface-variant;
+                        button-background: Theme.surface-variant.transparentize(0.6);
+                        button-size: 38px;
+                        icon-size: 17px;
+                        label: root.texts.aria-settings;
+                        clicked => { root.open-settings(); }
+                    }
+                }
+            }
+        }
+
+        // --------------------------------------------------------------
+        // Settings overlay
+        // --------------------------------------------------------------
+        if root.settings-open: Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #00000099;
+
+            TouchArea {
+                width: 100%;
+                height: 100%;
+                clicked => { root.close-settings(); }
+            }
+
+            Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 92%;
+                height: 82%;
+                border-radius: 24px;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.panel-border;
+                clip: true;
+
+                TouchArea {
+                    width: 100%;
+                    height: 100%;
+                }
+
+                HorizontalLayout {
+                    width: 100%;
+                    height: 100%;
+
+                    // Navigation
+                    Rectangle {
+                        width: 246px;
+                        height: 100%;
+                        background: Theme.surface-container.transparentize(0.35);
+
+                        VerticalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            padding-top: 20px;
+                            padding-bottom: 16px;
+                            spacing: 8px;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                cross-axis-alignment: center;
+                                Image {
+                                    source: @image-url("icons/settings.svg");
+                                    width: 24px;
+                                    height: 24px;
+                                    colorize: Theme.primary;
+                                }
+                                Text {
+                                    text: root.texts.settings-title;
+                                    color: Theme.primary;
+                                    font-size: 20px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            Rectangle { height: 16px; background: #00000000; }
+                            NavItem {
+                                icon: @image-url("icons/settings.svg");
+                                label: root.texts.settings-general;
+                                selected: root.settings-section == 0;
+                                clicked => { root.set-settings-section(0); }
+                            }
+                            NavItem {
+                                icon: @image-url("icons/palette.svg");
+                                label: root.texts.settings-appearance;
+                                selected: root.settings-section == 1;
+                                clicked => { root.set-settings-section(1); }
+                            }
+                            NavItem {
+                                icon: @image-url("icons/info.svg");
+                                label: root.texts.settings-about;
+                                selected: root.settings-section == 2;
+                                clicked => { root.set-settings-section(2); }
+                            }
+                        }
+                    }
+
+                    Rectangle { width: 1px; height: 100%; background: Theme.hairline; }
+
+                    // Content
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 100%;
+                        background: Theme.background.transparentize(0.55);
+
+                        ScrollView {
+                            width: 100%;
+                            height: 100%;
+
+                            VerticalLayout {
+                                alignment: start;
+                                padding-left: 30px;
+                                padding-right: 30px;
+                                padding-top: 26px;
+                                padding-bottom: 30px;
+                                spacing: 20px;
+
+                                Text {
+                                    text: root.settings-section == 0 ? root.texts.settings-general : (root.settings-section == 1 ? root.texts.settings-appearance : root.texts.settings-about);
+                                    color: Theme.primary;
+                                    font-size: 26px;
+                                    font-weight: 700;
+                                }
+
+                                if root.settings-section == 0: VerticalLayout {
+                                    alignment: start;
+                                    spacing: 14px;
+
+                                    // Theme row
+                                    Rectangle {
+                                        border-radius: 16px;
+                                        background: Theme.surface-container.transparentize(0.45);
+                                        border-width: 1px;
+                                        border-color: Theme.hairline;
+                                        HorizontalLayout {
+                                            padding: 16px;
+                                            spacing: 16px;
+                                            cross-axis-alignment: center;
+                                            VerticalLayout {
+                                                width: 48%;
+                                                spacing: 3px;
+                                                Text { text: root.texts.settings-theme; color: Theme.on-surface; font-size: 14px; font-weight: 700; }
+                                                Text { text: root.texts.settings-theme-desc; color: Theme.on-surface-variant; font-size: 12px; wrap: word-wrap; }
+                                            }
+                                            FlexboxLayout {
+                                                horizontal-stretch: 1;
+                                                spacing: 5px;
+                                                alignment: end;
+                                                flex-wrap: wrap;
+                                                ChoiceChip { label: root.texts.theme-system; selected: root.theme-preference == 0; clicked => { root.set-theme(0); } }
+                                                ChoiceChip { label: root.texts.theme-light; selected: root.theme-preference == 1; clicked => { root.set-theme(1); } }
+                                                ChoiceChip { label: root.texts.theme-dark; selected: root.theme-preference == 2; clicked => { root.set-theme(2); } }
+                                            }
+                                        }
+                                    }
+
+                                    // Language row
+                                    Rectangle {
+                                        border-radius: 16px;
+                                        background: Theme.surface-container.transparentize(0.45);
+                                        border-width: 1px;
+                                        border-color: Theme.hairline;
+                                        HorizontalLayout {
+                                            padding: 16px;
+                                            spacing: 16px;
+                                            cross-axis-alignment: center;
+                                            VerticalLayout {
+                                                width: 38%;
+                                                spacing: 3px;
+                                                Text { text: root.texts.settings-language; color: Theme.on-surface; font-size: 14px; font-weight: 700; }
+                                                Text { text: root.texts.settings-language-desc; color: Theme.on-surface-variant; font-size: 12px; wrap: word-wrap; }
+                                            }
+                                            FlexboxLayout {
+                                                horizontal-stretch: 1;
+                                                spacing: 5px;
+                                                alignment: end;
+                                                flex-wrap: wrap;
+                                                ChoiceChip { label: root.texts.language-system; selected: root.language-preference == 0; clicked => { root.set-language(0); } }
+                                                ChoiceChip { label: "English"; selected: root.language-preference == 1; clicked => { root.set-language(1); } }
+                                                ChoiceChip { label: "简体中文"; selected: root.language-preference == 2; clicked => { root.set-language(2); } }
+                                                ChoiceChip { label: "繁體中文"; selected: root.language-preference == 3; clicked => { root.set-language(3); } }
+                                            }
+                                        }
+                                    }
+
+                                    // Refresh row
+                                    Rectangle {
+                                        border-radius: 16px;
+                                        background: Theme.surface-container.transparentize(0.45);
+                                        border-width: 1px;
+                                        border-color: Theme.hairline;
+                                        HorizontalLayout {
+                                            padding: 16px;
+                                            spacing: 16px;
+                                            cross-axis-alignment: center;
+                                            VerticalLayout {
+                                                width: 32%;
+                                                spacing: 3px;
+                                                Text { text: root.texts.settings-refresh; color: Theme.on-surface; font-size: 14px; font-weight: 700; }
+                                                Text { text: root.texts.settings-refresh-desc; color: Theme.on-surface-variant; font-size: 12px; wrap: word-wrap; }
+                                            }
+                                            FlexboxLayout {
+                                                horizontal-stretch: 1;
+                                                spacing: 5px;
+                                                alignment: end;
+                                                flex-wrap: wrap;
+                                                ChoiceChip { label: root.texts.seconds-2; selected: root.refresh-index == 0; clicked => { root.set-refresh(0); } }
+                                                ChoiceChip { label: root.texts.seconds-3; selected: root.refresh-index == 1; clicked => { root.set-refresh(1); } }
+                                                ChoiceChip { label: root.texts.seconds-5; selected: root.refresh-index == 2; clicked => { root.set-refresh(2); } }
+                                                ChoiceChip { label: root.texts.seconds-10; selected: root.refresh-index == 3; clicked => { root.set-refresh(3); } }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if root.settings-section == 1: VerticalLayout {
+                                    alignment: start;
+                                    spacing: 14px;
+                                    Rectangle {
+                                        border-radius: 16px;
+                                        background: Theme.surface-container.transparentize(0.45);
+                                        border-width: 1px;
+                                        border-color: Theme.hairline;
+                                        HorizontalLayout {
+                                            padding: 16px;
+                                            spacing: 16px;
+                                            cross-axis-alignment: center;
+                                            VerticalLayout {
+                                                spacing: 3px;
+                                                Text { text: root.texts.settings-accent; color: Theme.on-surface; font-size: 14px; font-weight: 700; }
+                                                Text { text: root.texts.settings-accent-desc; color: Theme.on-surface-variant; font-size: 12px; wrap: word-wrap; }
+                                            }
+                                            Rectangle { horizontal-stretch: 1; background: #00000000; }
+                                            HorizontalLayout {
+                                                spacing: 10px;
+                                                alignment: end;
+                                                Swatch { swatch-color: #a7c6fb; selected: root.accent-index == 0; label: root.texts.accent-blue; clicked => { root.set-accent(0); } }
+                                                Swatch { swatch-color: #78e2d8; selected: root.accent-index == 1; label: root.texts.accent-teal; clicked => { root.set-accent(1); } }
+                                                Swatch { swatch-color: #cbaaf8; selected: root.accent-index == 2; label: root.texts.accent-purple; clicked => { root.set-accent(2); } }
+                                                Swatch { swatch-color: #ffd470; selected: root.accent-index == 3; label: root.texts.accent-amber; clicked => { root.set-accent(3); } }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if root.settings-section == 2: VerticalLayout {
+                                    alignment: start;
+                                    spacing: 14px;
+                                    Rectangle {
+                                        border-radius: 16px;
+                                        background: Theme.surface-container.transparentize(0.45);
+                                        border-width: 1px;
+                                        border-color: Theme.hairline;
+                                        HorizontalLayout {
+                                            padding: 16px;
+                                            spacing: 16px;
+                                            cross-axis-alignment: center;
+                                            Rectangle {
+                                                width: 48px;
+                                                height: 48px;
+                                                border-radius: 12px;
+                                                background: Theme.primary.transparentize(0.88);
+                                                Image {
+                                                    source: @image-url("icons/audio.svg");
+                                                    x: 11px;
+                                                    y: 11px;
+                                                    width: 26px;
+                                                    height: 26px;
+                                                    colorize: Theme.primary;
+                                                }
+                                            }
+                                            VerticalLayout {
+                                                spacing: 2px;
+                                                Text { text: "Auxlane"; color: Theme.on-surface; font-size: 15px; font-weight: 700; }
+                                                Text { text: root.texts.version-label + " " + root.app-version; color: Theme.on-surface-variant; font-size: 12px; }
+                                            }
+                                        }
+                                    }
+                                    Rectangle {
+                                        border-radius: 16px;
+                                        background: Theme.surface-container.transparentize(0.45);
+                                        border-width: 1px;
+                                        border-color: Theme.hairline;
+                                        VerticalLayout {
+                                            padding: 16px;
+                                            spacing: 3px;
+                                            Text { text: root.texts.design; color: Theme.on-surface; font-size: 14px; font-weight: 700; }
+                                            Text { text: root.texts.design-desc; color: Theme.on-surface-variant; font-size: 12px; wrap: word-wrap; }
+                                        }
+                                    }
+                                    Rectangle {
+                                        border-radius: 16px;
+                                        background: Theme.surface-container.transparentize(0.45);
+                                        border-width: 1px;
+                                        border-color: Theme.hairline;
+                                        VerticalLayout {
+                                            padding: 16px;
+                                            spacing: 3px;
+                                            Text { text: root.texts.built-with; color: Theme.on-surface; font-size: 14px; font-weight: 700; }
+                                            Text { text: root.texts.built-with-desc; color: Theme.on-surface-variant; font-size: 12px; wrap: word-wrap; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        IconButton {
+                            x: parent.width - 54px;
+                            y: 14px;
+                            icon: @image-url("icons/x.svg");
+                            icon-color: Theme.on-surface;
+                            button-background: Theme.surface-variant.transparentize(0.55);
+                            button-size: 36px;
+                            icon-size: 18px;
+                            label: root.texts.aria-close-settings;
+                            clicked => { root.close-settings(); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --------------------------------------------------------------
+        // More devices
+        // --------------------------------------------------------------
+        if root.more-open: Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #00000099;
+
+            TouchArea {
+                width: 100%;
+                height: 100%;
+                clicked => { root.more-open = false; }
+            }
+
+            Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 560px;
+                height: 70%;
+                border-radius: 20px;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.panel-border;
+                clip: true;
+
+                TouchArea {
+                    width: 100%;
+                    height: 100%;
+                }
+
+                VerticalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    padding-top: 16px;
+                    padding-bottom: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        cross-axis-alignment: center;
+                        Text {
+                            text: root.texts.more-title;
+                            color: Theme.primary;
+                            font-size: 20px;
+                            font-weight: 700;
+                        }
+                        Rectangle { horizontal-stretch: 1; background: #00000000; }
+                        IconButton {
+                            icon: @image-url("icons/x.svg");
+                            icon-color: Theme.on-surface;
+                            button-background: Theme.surface-variant.transparentize(0.55);
+                            button-size: 36px;
+                            icon-size: 18px;
+                            label: root.texts.aria-close-more;
+                            clicked => { root.more-open = false; }
+                        }
+                    }
+
+                    ScrollView {
+                        vertical-stretch: 1;
+                        width: 100%;
+                        accessible-role: list;
+                        accessible-label: root.texts.aria-more;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            if root.more-devices.length == 0: Text {
+                                text: root.texts.empty;
+                                color: Theme.on-surface-variant;
+                                font-size: 12px;
+                                horizontal-alignment: center;
+                            }
+                            for device in root.more-devices: DeviceRow {
+                                device: device;
+                                busy: root.connecting;
+                                select(id) => { root.select(id); root.more-open = false; }
+                                connect(id) => { root.connect(id); root.more-open = false; }
+                                disconnect() => { root.disconnect(); root.more-open = false; }
+                                toggle-favorite(id) => { root.toggle-favorite(id); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --------------------------------------------------------------
+        // Snackbar
+        // --------------------------------------------------------------
+        if root.snackbar-visible: Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: parent.height - self.height - 74px;
+            width: min(620px, parent.width - 48px);
+            height: 48px;
+            border-radius: 14px;
+            background: Theme.on-surface;
+
+            HorizontalLayout {
+                padding-left: 18px;
+                padding-right: 8px;
+                spacing: 12px;
+                cross-axis-alignment: center;
+
+                Text {
+                    text: root.snackbar-text;
+                    color: Theme.surface;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                Rectangle {
+                    width: dismiss_label.width + 20px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: #00000000;
+                    dismiss_label := Text {
+                        text: root.texts.snackbar-dismiss;
+                        color: Theme.primary;
+                        font-size: 12px;
+                        font-weight: 600;
+                        x: 10px;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        mouse-cursor: pointer;
+                        clicked => { root.dismiss-snackbar(); }
+                    }
+                }
+            }
+        }
+    }
+}
