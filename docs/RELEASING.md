@@ -10,7 +10,7 @@ This checklist keeps the version, executable and installer in sync.
 | `src/main.rs` | `APP_VERSION` (shown in Settings → About) |
 | `build.rs` | `FileVersion` / `ProductVersion` resources |
 | `installer/auxlane.nsi` | `VIProductVersion` / `FileVersion` / `ProductVersion` |
-| `README.md` | Memory table/build examples if they mention a version |
+| `README.md`, `README.zh-TW.md`, `README.en.md` | Memory table/build examples if they mention a version |
 
 Keep them identical. `Cargo.lock` updates on the next build.
 
