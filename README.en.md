@@ -12,23 +12,6 @@ The UI is a Material 3 dashboard inspired by
 UWP binary (.NET Native AOT) was inspected for interoperability only; no code
 from it is used.
 
-## Why this build exists
-
-The previous Tauri/WebView2 build used about **375 MB working set / 222 MB
-private memory** while idle (seven processes). The native Slint build uses
-about **37 MB working set / 12 MB private memory**, in a single process:
-
-| Build | Processes | Working set | Private |
-| --- | --- | --- | --- |
-| Tauri / WebView2 | 7 | 375.7 MB | 222.5 MB |
-| Tauri + browser flags | 7 | 384.6 MB | 221.3 MB |
-| Slint / femtovg | 1 | 80.4 MB | 108.4 MB |
-| **Slint / software (this build)** | **1** | **36.6 MB** | **12.3 MB** |
-
-The app forces Slint's software renderer. It redraws only when something
-changes, so a mostly static dashboard stays cheap; the audio ring animation
-is limited to 20 fps while streaming.
-
 ## Features
 
 - Lists Bluetooth audio endpoints Windows exposes for playback.
